@@ -54,9 +54,13 @@ def gen_composite_view_copy_kernel(g: NativeFunctionsViewGroup) -> Optional[str]
     if g.view_copy is None:
         return None
     # view_copy is a native signature, since we're generating an at::native:: kernel
-    view_copy_sig = NativeSignature(g.view_copy.func)
+    view_copy_sig = NativeSignature(
+        g.view_copy.func, structured_type_override=g.view_copy.part_of_structured_group
+    )
     # view is a dispatcher signature, since we're calling into the at::_ops API
-    view_sig = DispatcherSignature(g.view.func)
+    view_sig = DispatcherSignature(
+        g.view.func, structured_type_override=g.view.part_of_structured_group
+    )
 
     view_api_name = g.view.func.name.unambiguous_name()
     exprs = ", ".join(
@@ -101,7 +105,10 @@ def return_str(f: NativeFunction) -> str:
     if len(f.func.arguments.out) != 0:
         if len(f.func.arguments.out) > 1:
             return_names = ", ".join(a.name for a in f.func.arguments.out)
-            return f"return {DispatcherSignature.from_schema(f.func).returns_type().cpp_type()}({return_names});"
+            sig = DispatcherSignature.from_schema(
+                f.func, structured_type_override=f.part_of_structured_group
+            )
+            return f"return {sig.returns_type().cpp_type()}({return_names});"
         else:
             return f"return {f.func.arguments.out[0].name}"
     if f.func.arguments.self_arg is not None and len(f.func.returns) != 0:
@@ -241,7 +248,10 @@ def emit_view_functionalization_body(
 
     assert g.view_copy is not None
     with native_function_manager(f):
-        call_sig = DispatcherSignature.from_schema(g.view_copy.func)
+        call_sig = DispatcherSignature.from_schema(
+            g.view_copy.func,
+            structured_type_override=g.view_copy.part_of_structured_group,
+        )
 
         # the "view_copy" op name that the functionalization kernels need to call
         api_name = g.view_copy.func.name.unambiguous_name()
@@ -249,7 +259,9 @@ def emit_view_functionalization_body(
         # "no-op"ing in this context is just redispatching to the original op.
         noop_api_name = f.func.name.unambiguous_name()
 
-        dispatcher_sig = DispatcherSignature.from_schema(f.func)
+        dispatcher_sig = DispatcherSignature.from_schema(
+            f.func, structured_type_override=g.view_copy.part_of_structured_group
+        )
         assert_view_op_properties(f.func)
         view_tensor_name = dispatcher_sig.arguments()[0].name
 
@@ -359,7 +371,9 @@ def emit_inplace_functionalization_body(
     # mutation case
     assert modifies_arguments(f)
 
-    dispatcher_sig = DispatcherSignature.from_schema(f.func)
+    dispatcher_sig = DispatcherSignature.from_schema(
+        f.func, structured_type_override=f.part_of_structured_group
+    )
 
     return_type = dispatcher_sig.returns_type().remove_const_ref().cpp_type()
 
@@ -421,7 +435,10 @@ If this causes problems in your program, consider upstreaming the out-of-place o
 """
     else:
         # call the out-of-place variant of the op
-        functional_sig = DispatcherSignature.from_schema(functional_op.func)
+        functional_sig = DispatcherSignature.from_schema(
+            functional_op.func,
+            structured_type_override=functional_op.part_of_structured_group,
+        )
         functional_exprs = [
             e.expr
             for e in translate(
@@ -509,7 +526,9 @@ def gen_functionalization_registration(
             metadata = composite_implicit_autograd_index.get_kernel(f)
             assert metadata is not None
             native_api_name = metadata.kernel
-            sig = DispatcherSignature.from_schema(f.func)
+            sig = DispatcherSignature.from_schema(
+                f.func, structured_type_override=f.part_of_structured_group
+            )
             # Note [Composite view ops in the functionalization pass]
             # We don't need to worry about implemententing functionalization kernels for views with
             # CompositeImplicitAutograd kernels, because we can just decompose them into their base operators.
