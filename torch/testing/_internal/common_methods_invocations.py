@@ -1327,7 +1327,7 @@ class ReductionOpInfo(OpInfo):
     the optional keyword parameters of the ReductionOpInfo constructor.
 
     If a reduction operator does not yet implement the full required API of
-    reduction operators, this should be documented by skipping the failing
+    reduction operators, this should be documented by xfailing the failing
     tests rather than adding optional parameters to ReductionOpInfo.
 
     NOTE
@@ -2872,6 +2872,16 @@ def sample_inputs_isclose(op, device, dtype, requires_grad, **kwargs):
 
         yield SampleInput(lhs, args=(rhs,),
                           kwargs=dict(rtol=rtol, atol=atol, equal_nan=equal_nan))
+
+def sample_inputs_linalg_vecdot(op_info, device, dtype, requires_grad, **kwargs):
+    make_arg = partial(make_tensor, device=device, dtype=dtype, requires_grad=requires_grad)
+    batches = ((), (0,), (1,), (5,))
+    ns = (0, 1, 3, 5)
+    for b, n in product(batches, ns):
+        shape = b + (n,)
+        yield SampleInput(make_arg(shape), args=(make_arg(shape),))
+        for i in range(len(shape)):
+            yield SampleInput(make_arg(shape), args=(make_arg(shape),), kwargs=dict(dim=i))
 
 def sample_inputs_t(op_info, device, dtype, requires_grad, **kwargs):
     make_arg = partial(make_tensor, device=device, dtype=dtype, requires_grad=requires_grad)
@@ -11579,6 +11589,14 @@ op_db: List[OpInfo] = [
            ),
            decorators=[skipCUDAIfNoMagmaAndNoCusolver, skipCPUIfNoLapack],
            ),
+    OpInfo('linalg.vecdot',
+           aten_name='linalg_vecdot',
+           ref=lambda x, y, *, dim=-1: (x.conj() * y).sum(dim),
+           dtypes=floating_and_complex_types_and(torch.bfloat16),
+           dtypesIfCUDA=floating_and_complex_types_and(torch.float16, torch.bfloat16),
+           sample_inputs_func=sample_inputs_linalg_vecdot,
+           supports_forward_ad=True,
+           supports_fwgrad_bwgrad=True),
     OpInfo('linalg.cond',
            aten_name='linalg_cond',
            dtypes=floating_and_complex_types(),

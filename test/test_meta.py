@@ -653,6 +653,7 @@ meta_function_skips = {
     torch.linalg.matrix_power: {f32, f64},
     torch.linalg.matrix_rank: {f32, f64},
     torch.linalg.pinv: {f32, f64},
+    torch.linalg.vecdot: {f16, bf16, f32, f64},  # aten::prod
     torch.empty: {b8, bf16, c128, c64, c32, f16, f32, f64, i16, i32, i64, i8, u8},
 }
 
