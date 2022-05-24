@@ -781,6 +781,10 @@ class TestFSDPOptimState(FSDPTest):
         ):
             _check_optim_state_dict_shapes(osd, model, optim_input)
 
+    @skip_if_lt_x_gpu(4)
+    def test_multigpu(self):
+        raise RuntimeError("4 GPU test is indeed running!")
+
 
 instantiate_parametrized_tests(TestFSDPOptimState)
 
