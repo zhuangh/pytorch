@@ -639,7 +639,7 @@ class GitHubPR:
         return self.comments
 
     def get_last_comment(self) -> GitHubComment:
-        return self._comment_from_node(self.info["cowmments"]["nodes"][-1])
+        return self._comment_from_node(self.info["comments"]["nodes"][-1])
 
     def get_comment_by_id(self, database_id: int) -> GitHubComment:
         if self.comments is None:
