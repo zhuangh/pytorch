@@ -556,6 +556,38 @@ class TestDataFramesPipes(TestCase):
         df_numbers = self._get_dataframes_pipe(range=10).filter(lambda x: x.i > 5)
         self.assertEqual([(6, 0), (7, 1), (8, 2), (9, 0)], list(df_numbers))
 
+    @skipIfNoDataFrames
+    @skipIfNoDill
+    def test_collate(self):
+        def collate_i(column):
+            return column.sum()
+
+        def collate_j(column):
+            return column.prod()
+        df_numbers = self._get_dataframes_pipe(range=30).batch(3)
+        df_numbers = df_numbers.collate({'j': collate_j, 'i': collate_i})
+
+        expected_i = [3,
+                      12,
+                      21,
+                      30,
+                      39,
+                      48,
+                      57,
+                      66,
+                      75,
+                      84, ]
+
+        actual_i = []
+        for i, j in df_numbers:
+            actual_i.append(i)
+        self.assertEqual(expected_i, actual_i)
+
+        actual_i = []
+        for item in df_numbers:
+            actual_i.append(item.i)
+        self.assertEqual(expected_i, actual_i)
+
 
 class IDP_NoLen(IterDataPipe):
     def __init__(self, input_dp):
