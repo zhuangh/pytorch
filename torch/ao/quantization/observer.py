@@ -8,11 +8,45 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
 from functools import partial
-from typing import Any, List, Tuple, Optional, Dict
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
 from torch.ao.quantization.utils import check_min_max_valid, calculate_qmin_qmax
+
+
+__all__ = [
+    "default_affine_fixed_qparams_observer",
+    "default_debug_observer",
+    "default_dynamic_quant_observer",
+    "default_fixed_qparams_range_0to1_observer",
+    "default_fixed_qparams_range_neg1to1_observer",
+    "default_float_qparams_observer",
+    "default_float_qparams_observer_4bit",
+    "default_histogram_observer",
+    "default_observer",
+    "default_per_channel_weight_observer",
+    "default_placeholder_observer",
+    "default_reuse_input_observer",
+    "default_symmetric_fixed_qparams_observer",
+    "default_weight_observer",
+    "get_observer_state_dict",
+    "load_observer_state_dict",
+    "per_channel_weight_observer_range_neg_127_to_127",
+    "weight_observer_range_neg_127_to_127",
+    "FixedQParamsObserver",
+    "HistogramObserver",
+    "MinMaxObserver",
+    "MovingAverageMinMaxObserver",
+    "MovingAveragePerChannelMinMaxObserver",
+    "NoopObserver",
+    "ObserverBase",
+    "PerChannelMinMaxObserver",
+    "PlaceholderObserver",
+    "RecordingObserver",
+    "ReuseInputObserver",
+    "UniformQuantizationObserverBase",
+]
 
 
 class _PartialWrapper(object):
@@ -1512,3 +1546,19 @@ default_reuse_input_observer = ReuseInputObserver
 Default observer for operators like reshape that reuses the observer of input to
 the operator
 """
+
+_FIXED_QPARAMS_OP_TO_OBSERVER: Dict[Union[Callable, str], _PartialWrapper] = {
+    torch.nn.Hardsigmoid: default_fixed_qparams_range_0to1_observer,
+    torch.nn.functional.hardsigmoid: default_fixed_qparams_range_0to1_observer,
+    "hardsigmoid": default_fixed_qparams_range_0to1_observer,
+    "hardsigmoid_": default_fixed_qparams_range_0to1_observer,
+    torch.nn.Sigmoid: default_fixed_qparams_range_0to1_observer,
+    torch.sigmoid: default_fixed_qparams_range_0to1_observer,
+    "sigmoid": default_fixed_qparams_range_0to1_observer,
+    "sigmoid_": default_fixed_qparams_range_0to1_observer,
+    torch.nn.Softmax: default_fixed_qparams_range_0to1_observer,
+    torch.nn.Tanh: default_fixed_qparams_range_neg1to1_observer,
+    torch.tanh: default_fixed_qparams_range_neg1to1_observer,
+    "tanh": default_fixed_qparams_range_neg1to1_observer,
+    "tanh_": default_fixed_qparams_range_neg1to1_observer,
+}
