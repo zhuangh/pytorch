@@ -581,7 +581,7 @@ init_command = [
 is_formatter = true
 
 [[linter]]
-code = 'WORKFLOWSYNC'
+code = 'WORKFLOW'
 include_patterns = [
     '.github/workflows/pull.yml',
     '.github/workflows/trunk.yml',
@@ -589,7 +589,7 @@ include_patterns = [
 ]
 command = [
     'python3',
-    'tools/linter/adapters/workflow_consistency_linter.py',
+    'tools/linter/adapters/workflow_linter.py',
     '--',
     '@{{PATHSFILE}}'
 ]

@@ -6,23 +6,17 @@
 
 set -ex
 
-TORCH_INSTALL_DIR=$(python -c "import site; print(site.getsitepackages()[0])")/torch
-TORCH_BIN_DIR="$TORCH_INSTALL_DIR"/bin
-TORCH_LIB_DIR="$TORCH_INSTALL_DIR"/lib
-TORCH_TEST_DIR="$TORCH_INSTALL_DIR"/test
-
-BUILD_DIR="build"
-BUILD_RENAMED_DIR="build_renamed"
-BUILD_BIN_DIR="$BUILD_DIR"/bin
 
 # Get fully qualified path using realpath
 if [[ "$BUILD_ENVIRONMENT" != *bazel* ]]; then
   CUSTOM_TEST_ARTIFACT_BUILD_DIR=$(realpath "${CUSTOM_TEST_ARTIFACT_BUILD_DIR:-"build/custom_test_artifacts"}")
 fi
 
-
 # shellcheck source=./common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+
+# shellcheck source=./test-common.sh
+source "$(dirname "${BASH_SOURCE[0]}")/test-common.sh"
 
 echo "Environment variables"
 env
@@ -45,10 +39,6 @@ fi
 if [[ "$TEST_CONFIG" == 'slow' ]]; then
   export PYTORCH_TEST_WITH_SLOW=1
   export PYTORCH_TEST_SKIP_FAST=1
-fi
-
-if [[ "$BUILD_ENVIRONMENT" == *slow-gradcheck* ]]; then
-  export PYTORCH_TEST_WITH_SLOW_GRADCHECK=1
 fi
 
 if [[ "$BUILD_ENVIRONMENT" == *cuda* || "$BUILD_ENVIRONMENT" == *rocm* ]]; then
@@ -307,16 +297,14 @@ test_aot_compilation() {
 }
 
 test_vulkan() {
-  if [[ "$BUILD_ENVIRONMENT" == *vulkan* ]]; then
-    ln -sf "$TORCH_LIB_DIR"/libtorch* "$TORCH_TEST_DIR"
-    ln -sf "$TORCH_LIB_DIR"/libc10* "$TORCH_TEST_DIR"
-    export VK_ICD_FILENAMES=/var/lib/jenkins/swiftshader/build/Linux/vk_swiftshader_icd.json
-    # NB: the ending test_vulkan must match the current function name for the current
-    # test reporting process (in print_test_stats.py) to function as expected.
-    TEST_REPORTS_DIR=test/test-reports/cpp-vulkan/test_vulkan
-    mkdir -p $TEST_REPORTS_DIR
-    "$TORCH_TEST_DIR"/vulkan_api_test --gtest_output=xml:$TEST_REPORTS_DIR/vulkan_test.xml
-  fi
+  ln -sf "$TORCH_LIB_DIR"/libtorch* "$TORCH_TEST_DIR"
+  ln -sf "$TORCH_LIB_DIR"/libc10* "$TORCH_TEST_DIR"
+  export VK_ICD_FILENAMES=/var/lib/jenkins/swiftshader/build/Linux/vk_swiftshader_icd.json
+  # NB: the ending test_vulkan must match the current function name for the current
+  # test reporting process (in print_test_stats.py) to function as expected.
+  TEST_REPORTS_DIR=test/test-reports/cpp-vulkan/test_vulkan
+  mkdir -p $TEST_REPORTS_DIR
+  "$TORCH_TEST_DIR"/vulkan_api_test --gtest_output=xml:$TEST_REPORTS_DIR/vulkan_test.xml
 }
 
 test_distributed() {
@@ -558,28 +546,15 @@ test_dynamo() {
   popd
 }
 
-test_torch_deploy() {
-  python torch/csrc/deploy/example/generate_examples.py
-  ln -sf "$TORCH_LIB_DIR"/libtorch* "$TORCH_BIN_DIR"
-  ln -sf "$TORCH_LIB_DIR"/libshm* "$TORCH_BIN_DIR"
-  ln -sf "$TORCH_LIB_DIR"/libc10* "$TORCH_BIN_DIR"
-  "$TORCH_BIN_DIR"/test_deploy
-  "$TORCH_BIN_DIR"/test_deploy_gpu
-  assert_git_not_dirty
-}
-
 test_docs_test() {
   .jenkins/pytorch/docs-test.sh
 }
 
-if ! [[ "${BUILD_ENVIRONMENT}" == *libtorch* || "${BUILD_ENVIRONMENT}" == *-bazel-* ]]; then
+if ! [[ "${BUILD_ENVIRONMENT}" == *-bazel-* ]]; then
   (cd test && python -c "import torch; print(torch.__config__.show())")
   (cd test && python -c "import torch; print(torch.__config__.parallel_info())")
 fi
-if [[ "${TEST_CONFIG}" == *deploy* ]]; then
-  install_torchdynamo
-  test_torch_deploy
-elif [[ "${TEST_CONFIG}" == *backward* ]]; then
+if [[ "${TEST_CONFIG}" == *backward* ]]; then
   test_forward_backward_compatibility
   # Do NOT add tests after bc check tests, see its comment.
 elif [[ "${TEST_CONFIG}" == *xla* ]]; then
@@ -589,9 +564,6 @@ elif [[ "${TEST_CONFIG}" == *xla* ]]; then
   test_xla
 elif [[ "$TEST_CONFIG" == 'jit_legacy' ]]; then
   test_python_legacy_jit
-elif [[ "${BUILD_ENVIRONMENT}" == *libtorch* ]]; then
-  # TODO: run some C++ tests
-  echo "no-op at the moment"
 elif [[ "$TEST_CONFIG" == distributed ]]; then
   install_torchdynamo
   test_distributed
@@ -619,13 +591,11 @@ elif [[ "${SHARD_NUMBER}" -gt 2 ]]; then
   # Handle arbitrary number of shards
   install_torchdynamo
   test_python_shard "$SHARD_NUMBER"
-elif [[ "${BUILD_ENVIRONMENT}" == *vulkan* ]]; then
+elif [[ "${TEST_CONFIG}" == vulkan ]]; then
   # TODO: re-enable vulkan test
   echo "no-op at the moment"
 elif [[ "${BUILD_ENVIRONMENT}" == *-bazel-* ]]; then
   test_bazel
-elif [[ "${BUILD_ENVIRONMENT}" == *-mobile-lightweight-dispatch* ]]; then
-  test_libtorch
 elif [[ "${TEST_CONFIG}" = docs_test ]]; then
   test_docs_test
 else
